@@ -1,12 +1,10 @@
 // @flow
 /* eslint-disable flowtype/require-return-type, flowtype/require-parameter-type */
 
-const getCommitHash = require('./getCommitHash')
+const { getCommitHash } = require('./commitHash')
 const { dockerTagBase } = require('./config')
 
-async function getDockerTags(
-  target /* :? string */
-) /* : Promise<{latest: string, commitHash: string}> */ {
+async function getDockerTags() /* : Promise<{base: string, latest: string, commitHash: string}> */ {
   const commitHash = await getCommitHash()
   return {
     base: dockerTagBase,
@@ -15,4 +13,4 @@ async function getDockerTags(
   }
 }
 
-module.exports = getDockerTags
+module.exports = { getDockerTags }

@@ -9,9 +9,10 @@ const requireEnv = require('@jcoreio/require-env')
 const { exec, spawn } = require('@jcoreio/script-tools')
 
 const { doECRLogin, getECRHost } = require('./ecr')
-const getDockerTags = require('./getDockerTags')
+const { getDockerTags } = require('./dockerTags')
 
-module.exports = async function dockerPush() {
+async function dockerPush() {
+  require('dotenv').config()
   const AWSAccountId = requireEnv('AWS_ACCOUNT_ID')
   const AWSRegion = requireEnv('AWS_REGION')
 
@@ -56,3 +57,5 @@ module.exports = async function dockerPush() {
     )
   )
 }
+
+module.exports = { dockerPush }

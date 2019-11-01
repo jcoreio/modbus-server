@@ -19,4 +19,4 @@ async function getNPMToken(
   throw new Error('Missing process.env.NPM_TOKEN or entry in ~/.npmrc')
 }
 
-module.exports = getNPMToken
+module.exports = { getNPMToken }

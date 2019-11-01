@@ -14,9 +14,9 @@ const fs = require('fs-extra')
 const chalk = require('chalk')
 const Promake = require('promake')
 
-const dockerPush = require('./scripts/dockerPush')
-const getDockerTags = require('./scripts/getDockerTags')
-const getNPMToken = require('./scripts/getNPMToken')
+const { dockerPush } = require('./scripts/dockerPush')
+const { getDockerTags } = require('./scripts/dockerTags')
+const { getNPMToken } = require('./scripts/npmToken')
 
 const promake = new Promake()
 
@@ -216,12 +216,17 @@ for (let coverage of [false, true]) {
   }
 }
 
-task('prep', [
-  task('lint:fix'),
-  task('prettier:fix'),
-  task('flow'),
-  task('test'),
-]).description('run all checks, automatic fixes, and unit tests')
+for (const fix of [false, true]) {
+  const fixSuffix = fix ? ':fix' : ''
+  task(fix ? 'prep' : 'check', [
+    task(`lint${fixSuffix}`),
+    task(`prettier${fixSuffix}`),
+    task('flow'),
+    task('test'),
+  ]).description(
+    `run all checks${fix ? ', automatic fixes,' : ''} and unit tests`
+  )
+}
 
 const deployECS = () => spawn('babel-node', ['scripts/ecsDeploy'])
 task('deploy:ecs', dockerPushTask, deployECS).description(
