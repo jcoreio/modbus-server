@@ -228,11 +228,16 @@ for (const fix of [false, true]) {
   )
 }
 
-const deployECS = () => spawn('babel-node', ['scripts/ecsDeploy'])
-task('deploy:ecs', dockerPushTask, deployECS).description(
+const deploy = async () => {
+  require('dotenv').config()
+  const { deployFromEnv } = require('./scripts/deploy')
+  await deployFromEnv()
+}
+
+task('deploy', dockerPushTask, deploy).description(
   'build and push docker image and deploy to AWS Elastic Container Service'
 )
-task('deploy:ecs:built', deployECS).description(
+task('deploy:built', deploy).description(
   'deploy already built and pushed docker image to AWS Elastic Container Service'
 )
 

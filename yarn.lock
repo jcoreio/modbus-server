@@ -893,10 +893,10 @@
   dependencies:
     find-up "^4.0.0"
 
-"@jcoreio/cloudformation-tools@^2.5.0":
-  version "2.5.0"
-  resolved "https://registry.yarnpkg.com/@jcoreio/cloudformation-tools/-/cloudformation-tools-2.5.0.tgz#8983742c3326455efe3c6b6ed9d9ba07b1015810"
-  integrity sha512-KAxVHK1uF7WEuDmjCgPUJvYmbQvCwooKc5pj+TNp8L/VAyh1jFzxG4x3378v92ng1knFMRHtdEU56S0aVXBbcg==
+"@jcoreio/cloudformation-tools@^2.6.0":
+  version "2.6.0"
+  resolved "https://registry.yarnpkg.com/@jcoreio/cloudformation-tools/-/cloudformation-tools-2.6.0.tgz#6deb0c73e40f6df4f466fe047c711732356fdf73"
+  integrity sha512-mp+zzCKoVlwOK3QM/5ezbjT+pUNWAtg0J1JoJFPY5uezwnzJMIcqL85NbLQ2ND2cgjuMOTwIONS2KBVbdUkKXQ==
   dependencies:
     "@babel/runtime" "^7.1.5"
     ansi-escapes "^3.1.0"
@@ -905,6 +905,7 @@
     fs-extra "^7.0.1"
     lodash "^4.17.11"
     table "^5.2.1"
+    verror "^1.10.0"
 
 "@jcoreio/commitlint-config@^1.1.0":
   version "1.1.0"

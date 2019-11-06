@@ -1,28 +1,53 @@
 #!/usr/bin/env node
 
+const { kebabCase } = require('lodash')
 const { upsertPublicAndPrivateRecords } = require('mindless-route53')
-const { deployCloudFormationStack } = require('@jcoreio/cloudformation-tools')
+const {
+  deployCloudFormationStack,
+  getVPCIdBySubnetId,
+  upsertSecurityGroup,
+} = require('@jcoreio/cloudformation-tools')
+const requireEnv = require('@jcoreio/require-env')
 
-const { getTemplate } = require('./cloudFormationTemplate')
+const { template } = require('./cloudFormationTemplate')
 const { getDockerTags } = require('./dockerTags')
+const { getECRHost } = require('./ecr')
 
 /* eslint-disable no-console */
 
-module.exports = { deploy }
+module.exports = { deploy, deployFromEnv }
+
+if (require.main === module) {
+  deployFromEnv()
+    .then(() => process.exit(0))
+    .catch(err => {
+      console.error('deploy failed', err)
+      process.exit(1)
+    })
+}
+
+async function deployFromEnv() {
+  const {
+    APPROVE,
+    INSTANCE_TYPE,
+    MEMORY_RESERVATION,
+    ACCESS_SG_NAME,
+  } = process.env
+  await deploy({
+    approve: !!parseInt(APPROVE),
+    StackName: requireEnv('STACK_NAME'),
+    HostName: requireEnv('HOST_NAME'),
+    AWSRegion: requireEnv('AWS_REGION'),
+    KeyName: requireEnv('KEY_NAME'),
+    SubnetId: requireEnv('SUBNET_ID'),
+    InstanceType: INSTANCE_TYPE,
+    AppMemoryReservation: MEMORY_RESERVATION,
+    AppAccessSecurityGroupName: ACCESS_SG_NAME,
+  })
+}
 
 async function deploy(params) {
-  const {
-    approve,
-    StackName,
-    HostName,
-    AWSRegion,
-    KeyName,
-    SubnetId,
-    VpcId,
-    AppAccessSecurityGroupId,
-  } = params
-  const InstanceType = params.InstanceType || 't3.micro'
-  const AppMemoryReservation = params.AppMemoryReservation || 256
+  const { approve, StackName, HostName, AWSRegion, KeyName, SubnetId } = params
 
   const requiredParamValues = {
     StackName,
@@ -30,8 +55,6 @@ async function deploy(params) {
     AWSRegion,
     KeyName,
     SubnetId,
-    VpcId,
-    AppAccessSecurityGroupId,
   }
   const missingParams = Object.keys(requiredParamValues).filter(
     key => !requiredParamValues[key]
@@ -45,13 +68,36 @@ async function deploy(params) {
     )
   }
 
-  const { commitHash: AppDockerImage } = await getDockerTags()
-  console.log(`using Docker tag: ${AppDockerImage}`)
+  const InstanceType = params.InstanceType || 't3.micro'
+  const AppMemoryReservation = params.AppMemoryReservation || 256
+  const AppAccessSecurityGroupName =
+    params.AppAccessSecurityGroupName || kebabCase(`${StackName}-access-sg`)
+
+  const AppDockerImage = `${getECRHost()}/${(await getDockerTags()).commitHash}`
+  console.log(`using Docker image: ${AppDockerImage}`)
+
+  console.log(`looking up VPC ID for subnet ID ${SubnetId}`)
+  const vpcId = await getVPCIdBySubnetId({
+    subnetId: SubnetId,
+    region: AWSRegion,
+  })
+
+  console.log(
+    `ensuring ${AppAccessSecurityGroupName} access security group exists`
+  )
+  const {
+    securityGroupId: AppAccessSecurityGroupId,
+  } = await upsertSecurityGroup({
+    securityGroupName: AppAccessSecurityGroupName,
+    securityGroupDescription: `Access to ${StackName}`,
+    vpcId,
+    region: AWSRegion,
+  })
 
   const Parameters = {
     KeyName,
     SubnetId,
-    VpcId,
+    VpcId: vpcId,
     InstanceType,
     AppAccessSecurityGroupId,
     AppDockerImage,
@@ -66,9 +112,9 @@ async function deploy(params) {
     readOutputs: true,
     region: AWSRegion,
     StackName,
-    TemplateBody: JSON.stringify(getTemplate(), null, 2),
+    TemplateBody: JSON.stringify(template, null, 2),
     Parameters,
-    Capabilities: ['CAPABILITY_IAM'],
+    Capabilities: ['CAPABILITY_NAMED_IAM'],
   })
 
   console.log('upserting DNS records')

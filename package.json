@@ -94,7 +94,7 @@
     "@babel/register": "^7.0.0",
     "@babel/runtime": "^7.5.5",
     "@commitlint/cli": "^8.2.0",
-    "@jcoreio/cloudformation-tools": "^2.5.0",
+    "@jcoreio/cloudformation-tools": "^2.6.0",
     "@jcoreio/commitlint-config": "^1.1.0",
     "@jcoreio/require-env": "^1.0.17",
     "@jcoreio/script-tools": "^2.1.1",

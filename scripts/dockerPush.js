@@ -5,7 +5,6 @@
 const chalk = require('chalk')
 const { VError } = require('verror')
 
-const requireEnv = require('@jcoreio/require-env')
 const { exec, spawn } = require('@jcoreio/script-tools')
 
 const { doECRLogin, getECRHost } = require('./ecr')
@@ -13,10 +12,7 @@ const { getDockerTags } = require('./dockerTags')
 
 async function dockerPush() {
   require('dotenv').config()
-  const AWSAccountId = requireEnv('AWS_ACCOUNT_ID')
-  const AWSRegion = requireEnv('AWS_REGION')
-
-  const ecrHost = getECRHost({ AWSAccountId, AWSRegion })
+  const ecrHost = getECRHost()
 
   await doECRLogin()
 
