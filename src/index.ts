@@ -1,5 +1,3 @@
-/* @flow */
-
 /* eslint-disable no-console, no-undef */
 
 let count = 0

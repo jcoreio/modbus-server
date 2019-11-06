@@ -1,11 +1,7 @@
 #!/usr/bin/env node
-// @flow
 
 'use strict'
 
-/* eslint-disable flowtype/require-return-type, flowtype/require-parameter-type */
-
-const glob = require('glob')
 const path = require('path')
 const { execSync } = require('child_process')
 const { flatten, values } = require('lodash')
@@ -68,23 +64,23 @@ function env(...names /* : Array<string> */) /* : {[name: string]: ?string} */ {
   }
 }
 
-const libDir = path.resolve('lib')
-const srcFiles = glob.sync('src/**/*.js')
-const transpiledFiles = srcFiles.map(file => file.replace(/^src/, libDir))
-const transpilePrereqs = [...srcFiles, 'node_modules', '.babelrc.js']
+const clean = () => remove(path.resolve('lib'))
+task('clean', clean).description('remove build output')
 
-rule(transpiledFiles, transpilePrereqs, async () => {
-  await remove(libDir)
-  await spawn('babel', ['src', '--out-dir', libDir])
-})
 // Just transpile from src to lib
-task('build', transpiledFiles)
+const buildTask = task('build', async () => {
+  await clean()
+  await spawn('babel', [
+    'src',
+    '--out-dir',
+    'lib',
+    '--extensions',
+    '.ts,.tsx',
+    '--source-maps-inline',
+  ])
+})
 
-task('clean', async () => {
-  await remove(libDir)
-}).description('remove build output')
-
-const dockerBuildTask = task('docker:build', transpiledFiles, async () => {
+const dockerBuildTask = task('docker:build', buildTask, async () => {
   const dockerTags = await getDockerTags()
   const tagArgs = flatten(values(dockerTags).map(tag => ['-t', tag]))
   const npmToken = await getNPMToken()
@@ -115,26 +111,9 @@ task('docker:push:built', dockerPush).description(
   'push already-built docker image'
 )
 
-task('flow', 'node_modules', () => spawn('flow')).description(
-  'check files with flow'
+task('types', 'node_modules', () => spawn('tsc', ['--noEmit'])).description(
+  'check files with TypeScript'
 )
-
-task('flow:watch', 'node_modules', () =>
-  spawn('flow-watch', [
-    '--watch',
-    '.flowconfig',
-    '--watch',
-    'src/',
-    '--watch',
-    'scripts/',
-    '--watch',
-    'test/',
-    '--watch',
-    'run',
-    '--watch',
-    'run.js',
-  ])
-).description('run flow in watch mode')
 
 const lintFiles = ['run', 'run.js', 'src', 'scripts', 'test']
 
@@ -221,7 +200,7 @@ for (const fix of [false, true]) {
   task(fix ? 'prep' : 'check', [
     task(`lint${fixSuffix}`),
     task(`prettier${fixSuffix}`),
-    task('flow'),
+    task('types'),
     task('test'),
   ]).description(
     `run all checks${fix ? ', automatic fixes,' : ''} and unit tests`

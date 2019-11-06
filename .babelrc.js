@@ -1,19 +1,15 @@
 module.exports = function(api) {
   const plugins = [
-    '@babel/plugin-transform-flow-strip-types',
-    '@babel/plugin-syntax-dynamic-import',
-    '@babel/plugin-proposal-class-properties',
-    '@babel/plugin-proposal-export-default-from',
-    '@babel/plugin-proposal-export-namespace-from',
-    '@babel/plugin-proposal-object-rest-spread',
+    '@babel/proposal-class-properties',
+    '@babel/proposal-object-rest-spread',
   ]
   const presets = [
-    ['@babel/preset-env', { targets: { node: '8' } }],
-    '@babel/preset-flow',
+    ['@babel/env', { targets: { node: '8' } }],
+    '@babel/typescript',
   ]
 
   if (api.env(['test', 'coverage'])) {
-    plugins.push('@babel/plugin-transform-runtime')
+    plugins.push('@babel/transform-runtime')
   }
   if (api.env('coverage')) {
     plugins.push('babel-plugin-istanbul')
