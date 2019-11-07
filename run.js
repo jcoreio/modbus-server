@@ -64,13 +64,12 @@ function env(...names /* : Array<string> */) /* : {[name: string]: ?string} */ {
   }
 }
 
-const clean = () => remove(path.resolve('lib'))
-task('clean', clean).description('remove build output')
+const cleanTask = task('clean', () => remove(path.resolve('lib'))).description(
+  'remove build output'
+)
 
-// Just transpile from src to lib
-const buildTask = task('build', async () => {
-  await clean()
-  await spawn('babel', [
+const buildJSTask = task('build:js', () =>
+  spawn('babel', [
     'src',
     '--out-dir',
     'lib',
@@ -78,7 +77,14 @@ const buildTask = task('build', async () => {
     '.ts,.tsx',
     '--source-maps-inline',
   ])
-})
+)
+
+const buildTypesTask = task('build:types', () =>
+  spawn('tsc', ['--emitDeclarationOnly', '-p', 'src'])
+)
+
+// Just transpile from src to lib
+const buildTask = task('build', [cleanTask, buildJSTask, buildTypesTask])
 
 const dockerBuildTask = task('docker:build', buildTask, async () => {
   const dockerTags = await getDockerTags()
@@ -132,8 +138,8 @@ for (const fix of [false, true]) {
     spawn('prettier', [
       fix ? '--write' : '--list-different',
       'run.js',
-      'src/**/*.js',
-      'test/**/*.js',
+      'src/**/*.ts',
+      'test/**/*.ts',
     ])
   )
 }
@@ -148,11 +154,11 @@ function testRecipe(
 } */
 ) /* : (rule: {args: Array<string>}) => Promise<void> */ {
   const { unit, integration, coverage, watch, debug } = options
-  const args = ['-r', '@babel/register']
+  const args = ['./test/configure.js']
   if (watch) args.push('./test/clearConsole.js')
 
-  if (unit) args.push('./test/unit/**/*.js')
-  if (integration) args.push('./test/integration/**/*.js')
+  if (unit) args.push('./test/unit/**/*.ts')
+  if (integration) args.push('./test/integration/**/*.ts')
   if (watch) args.push('--watch')
   if (debug) args.push('--inspect-brk')
   let command = 'mocha'
