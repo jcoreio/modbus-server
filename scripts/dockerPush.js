@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-/* eslint-disable no-console */
+/* eslint-disable  @typescript-eslint/no-var-requires,  @typescript-eslint/explicit-function-return-type, no-console */
 
 const chalk = require('chalk')
 const { VError } = require('verror')
@@ -22,8 +22,10 @@ async function dockerPush() {
     latest: latestTag,
   } = await getDockerTags()
   await exec(`docker tag "${commitHashTag}" "${ecrHost}/${commitHashTag}"`)
-  await exec(`docker tag "${commitHashTag}" "${ecrHost}/${latestTag}"`).catch(
-    () => exec(`docker tag -f "${commitHashTag}" "${ecrHost}/${commitHashTag}"`)
+  await exec(
+    `docker tag "${commitHashTag}" "${ecrHost}/${latestTag}"`
+  ).catch(() =>
+    exec(`docker tag -f "${commitHashTag}" "${ecrHost}/${commitHashTag}"`)
   )
   const doPush = tag =>
     spawn('docker', ['push', `${ecrHost}/${tag}`], { captureStdio: true })

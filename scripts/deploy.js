@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+/* eslint-disable  @typescript-eslint/no-var-requires, @typescript-eslint/explicit-function-return-type, no-console */
+
 const { kebabCase } = require('lodash')
 const { upsertPublicAndPrivateRecords } = require('mindless-route53')
 const {
@@ -12,39 +14,6 @@ const requireEnv = require('@jcoreio/require-env')
 const { template } = require('./cloudFormationTemplate')
 const { getDockerTags } = require('./dockerTags')
 const { getECRHost } = require('./ecr')
-
-/* eslint-disable no-console */
-
-module.exports = { deploy, deployFromEnv }
-
-if (require.main === module) {
-  deployFromEnv()
-    .then(() => process.exit(0))
-    .catch(err => {
-      console.error('deploy failed', err)
-      process.exit(1)
-    })
-}
-
-async function deployFromEnv() {
-  const {
-    APPROVE,
-    INSTANCE_TYPE,
-    MEMORY_RESERVATION,
-    ACCESS_SG_NAME,
-  } = process.env
-  await deploy({
-    approve: !!parseInt(APPROVE),
-    StackName: requireEnv('STACK_NAME'),
-    HostName: requireEnv('HOST_NAME'),
-    AWSRegion: requireEnv('AWS_REGION'),
-    KeyName: requireEnv('KEY_NAME'),
-    SubnetId: requireEnv('SUBNET_ID'),
-    InstanceType: INSTANCE_TYPE,
-    AppMemoryReservation: MEMORY_RESERVATION,
-    AppAccessSecurityGroupName: ACCESS_SG_NAME,
-  })
-}
 
 async function deploy(params) {
   const { approve, StackName, HostName, AWSRegion, KeyName, SubnetId } = params
@@ -125,4 +94,35 @@ async function deploy(params) {
     TTL: 60,
   })
   console.log('deploy succeeded')
+}
+
+async function deployFromEnv() {
+  const {
+    APPROVE,
+    INSTANCE_TYPE,
+    MEMORY_RESERVATION,
+    ACCESS_SG_NAME,
+  } = process.env
+  await deploy({
+    approve: !!parseInt(APPROVE),
+    StackName: requireEnv('STACK_NAME'),
+    HostName: requireEnv('HOST_NAME'),
+    AWSRegion: requireEnv('AWS_REGION'),
+    KeyName: requireEnv('KEY_NAME'),
+    SubnetId: requireEnv('SUBNET_ID'),
+    InstanceType: INSTANCE_TYPE,
+    AppMemoryReservation: MEMORY_RESERVATION,
+    AppAccessSecurityGroupName: ACCESS_SG_NAME,
+  })
+}
+
+module.exports = { deploy, deployFromEnv }
+
+if (require.main === module) {
+  deployFromEnv()
+    .then(() => process.exit(0))
+    .catch(err => {
+      console.error('deploy failed', err)
+      process.exit(1)
+    })
 }

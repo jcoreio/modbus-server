@@ -1,3 +1,5 @@
+/* eslint-disable  @typescript-eslint/no-var-requires,  @typescript-eslint/explicit-function-return-type */
+
 const { exec } = require('promisify-child-process')
 
 async function getCommitHash() {

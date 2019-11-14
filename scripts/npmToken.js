@@ -1,9 +1,6 @@
-// @flow
-/* eslint-disable flowtype/require-return-type, flowtype/require-parameter-type */
+/* eslint-disable  @typescript-eslint/explicit-function-return-type */
 
-async function getNPMToken(
-  env /* : {[name: string]: ?string} */ = process.env
-) /* : Promise<string> */ {
+async function getNPMToken(env = process.env) {
   const { NPM_TOKEN } = env
   if (NPM_TOKEN) return NPM_TOKEN
   try {

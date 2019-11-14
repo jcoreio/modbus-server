@@ -2,6 +2,8 @@
 
 'use strict'
 
+/* eslint-disable  @typescript-eslint/no-var-requires,  @typescript-eslint/explicit-function-return-type */
+
 const path = require('path')
 const { execSync } = require('child_process')
 const { flatten, values } = require('lodash')
@@ -56,7 +58,8 @@ rule('node_modules', ['package.json', 'yarn.lock'], async () => {
   await touch('node_modules')
 })
 
-function env(...names /* : Array<string> */) /* : {[name: string]: ?string} */ {
+function env /* ...names */() /* : {[name: string]: ?string} */ {
+  /* : Array<string> */
   return {
     ...process.env,
     //...require('defaultenv')(names.map(name => `env/${name}.js`), {noExport: true}),
@@ -121,7 +124,13 @@ task('types', 'node_modules', () => spawn('tsc', ['--noEmit'])).description(
   'check files with TypeScript'
 )
 
-const lintFiles = ['run', 'run.js', 'src', 'scripts', 'test']
+const lintFiles = [
+  'run.js',
+  'src/**/*.ts',
+  'scripts/**/*.js',
+  'test/**/*.js',
+  'test/**/*.ts',
+]
 
 task('lint', ['node_modules'], () =>
   spawn('eslint', [...lintFiles, '--cache'])
@@ -132,17 +141,6 @@ task('lint:fix', 'node_modules', () =>
 task('lint:watch', 'node_modules', () =>
   spawn('esw', ['-w', ...lintFiles, '--changed', '--cache'])
 ).description('run eslint in watch mode')
-
-for (const fix of [false, true]) {
-  task(`prettier${fix ? ':fix' : ''}`, ['node_modules'], () =>
-    spawn('prettier', [
-      fix ? '--write' : '--list-different',
-      'run.js',
-      'src/**/*.ts',
-      'test/**/*.ts',
-    ])
-  )
-}
 
 function testRecipe(
   options /* : {
@@ -174,10 +172,10 @@ function testRecipe(
     })
 }
 
-for (let coverage of [false, true]) {
+for (const coverage of [false, true]) {
   const prefix = coverage ? 'coverage' : 'test'
-  for (let watch of coverage ? [false] : [false, true]) {
-    for (let debug of watch ? [false] : [false, true]) {
+  for (const watch of coverage ? [false] : [false, true]) {
+    for (const debug of watch ? [false] : [false, true]) {
       const suffix = watch ? ':watch' : debug ? ':debug' : ''
       task(
         `${prefix}${suffix}`,
@@ -202,10 +200,8 @@ for (let coverage of [false, true]) {
 }
 
 for (const fix of [false, true]) {
-  const fixSuffix = fix ? ':fix' : ''
   task(fix ? 'prep' : 'check', [
-    task(`lint${fixSuffix}`),
-    task(`prettier${fixSuffix}`),
+    task(`lint${fix ? ':fix' : ''}`),
     task('types'),
     task('test'),
   ]).description(

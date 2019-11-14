@@ -1,3 +1,5 @@
+/* eslint-disable  @typescript-eslint/no-var-requires,  @typescript-eslint/explicit-function-return-type */
+
 const requireEnv = require('@jcoreio/require-env')
 const { exec } = require('@jcoreio/script-tools')
 
