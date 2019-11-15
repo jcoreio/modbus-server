@@ -71,7 +71,7 @@ const cleanTask = task('clean', () => remove(path.resolve('lib'))).description(
   'remove build output'
 )
 
-const buildJSTask = task('build:js', () =>
+const buildJSTask = task('build:js', ['node_modules'], () =>
   spawn('babel', [
     'src',
     '--out-dir',
@@ -82,12 +82,14 @@ const buildJSTask = task('build:js', () =>
   ])
 )
 
-const buildTypesTask = task('build:types', () =>
+const buildTypesTask = task('build:types', ['node_modules'], () =>
   spawn('tsc', ['--emitDeclarationOnly', '-p', 'src'])
 )
 
 // Just transpile from src to lib
 const buildTask = task('build', [cleanTask, buildJSTask, buildTypesTask])
+
+task('prod', buildJSTask, () => spawn('node', ['lib/index.js'], { env: env() }))
 
 const dockerBuildTask = task('docker:build', buildTask, async () => {
   const dockerTags = await getDockerTags()
