@@ -1,7 +1,7 @@
 {
-  "name": "@jcoreio/ecs-task-skeleton",
+  "name": "@jcoreio/typescript-node-project-skeleton",
   "version": "0.0.0-development",
-  "description": "skeleton for node.js libraries and projects",
+  "description": "Skeleton for a node.js library written in TypeScript",
   "main": "lib/index.js",
   "engines": {
     "node": ">=8.0.0"
@@ -51,17 +51,18 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/jcoreio/ecs-task-skeleton.git"
+    "url": "https://github.com/jcoreio/typescript-node-project-skeleton.git"
   },
   "keywords": [
-    "es2015"
+    "TypeScript",
+    "skeleton"
   ],
-  "author": "Andy Edwards",
+  "author": "Jason McLaurin",
   "license": "UNLICENSED",
   "bugs": {
-    "url": "https://github.com/jcoreio/ecs-task-skeleton/issues"
+    "url": "https://github.com/jcoreio/typescript-node-project-skeleton/issues"
   },
-  "homepage": "https://github.com/jcoreio/ecs-task-skeleton#readme",
+  "homepage": "https://github.com/jcoreio/typescript-node-project-skeleton#readme",
   "devDependencies": {
     "@babel/cli": "^7.7.0",
     "@babel/core": "^7.7.0",
@@ -73,10 +74,7 @@
     "@babel/register": "^7.7.0",
     "@babel/runtime": "^7.7.1",
     "@commitlint/cli": "^8.2.0",
-    "@jcoreio/cloudformation-tools": "^2.6.0",
     "@jcoreio/commitlint-config": "^1.1.0",
-    "@jcoreio/require-env": "^1.0.17",
-    "@jcoreio/script-tools": "^2.1.1",
     "@types/mocha": "^5.2.7",
     "@typescript-eslint/eslint-plugin": "^2.7.0",
     "@typescript-eslint/parser": "^2.7.0",
@@ -87,7 +85,6 @@
     "copy": "^0.3.2",
     "cross-env": "^5.2.0",
     "defaultenv": "^3.1.0",
-    "dotenv": "^8.2.0",
     "eslint": "^5.9.0",
     "eslint-config-prettier": "^6.5.0",
     "eslint-plugin-prettier": "^3.1.1",
@@ -96,8 +93,6 @@
     "husky": "^1.1.4",
     "istanbul": "^0.4.5",
     "lint-staged": "^8.0.4",
-    "lodash": "^4.17.15",
-    "mindless-route53": "^1.1.0",
     "mocha": "^6.0.0",
     "nyc": "^13.1.0",
     "prettier": "^1.15.2",
@@ -108,8 +103,7 @@
     "semantic-release": "^15.1.4",
     "semver": "^6.3.0",
     "touch": "^3.1.0",
-    "typescript": "^3.7.2",
-    "verror": "^1.10.0"
+    "typescript": "^3.7.2"
   },
   "dependencies": {},
   "renovate": {

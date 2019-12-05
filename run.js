@@ -6,15 +6,10 @@
 
 const path = require('path')
 const { execSync } = require('child_process')
-const { flatten, values } = require('lodash')
 const touch = require('touch')
 const fs = require('fs-extra')
 const chalk = require('chalk')
 const Promake = require('promake')
-
-const { dockerPush } = require('./scripts/dockerPush')
-const { getDockerTags } = require('./scripts/dockerTags')
-const { getNPMToken } = require('./scripts/npmToken')
 
 const promake = new Promake()
 
@@ -78,7 +73,8 @@ const buildJSTask = task('build:js', ['node_modules'], () =>
     'lib',
     '--extensions',
     '.ts,.tsx',
-    '--source-maps-inline',
+    '--source-maps',
+    'inline',
   ])
 )
 
@@ -87,52 +83,13 @@ const buildTypesTask = task('build:types', ['node_modules'], () =>
 )
 
 // Just transpile from src to lib
-const buildTask = task('build', [cleanTask, buildJSTask, buildTypesTask])
-
-task('prod', buildJSTask, () => spawn('node', ['lib/index.js'], { env: env() }))
-
-const dockerBuildTask = task('docker:build', buildTask, async () => {
-  const dockerTags = await getDockerTags()
-  const tagArgs = flatten(values(dockerTags).map(tag => ['-t', tag]))
-  const npmToken = await getNPMToken()
-  await spawn('docker', [
-    'build',
-    '--build-arg',
-    `NPM_TOKEN=${npmToken}`,
-    ...tagArgs,
-    '.',
-  ])
-}).description('generate Docker container')
-
-const runDocker = () => spawn('docker-compose', ['up'], { env: env() })
-
-task('docker:run', dockerBuildTask, runDocker).description(
-  'build and run the docker image'
-)
-task('docker:run:built', runDocker).description(
-  'run the already-built docker image'
-)
-
-const dockerPushTask = task(
-  'docker:push',
-  dockerBuildTask,
-  dockerPush
-).description('build and push docker image')
-task('docker:push:built', dockerPush).description(
-  'push already-built docker image'
-)
+task('build', [cleanTask, buildJSTask, buildTypesTask])
 
 task('types', 'node_modules', () => spawn('tsc', ['--noEmit'])).description(
   'check files with TypeScript'
 )
 
-const lintFiles = [
-  'run.js',
-  'src/**/*.ts',
-  'scripts/**/*.js',
-  'test/**/*.js',
-  'test/**/*.ts',
-]
+const lintFiles = ['run.js', 'src/**/*.ts', 'test/**/*.js', 'test/**/*.ts']
 
 task('lint', ['node_modules'], () =>
   spawn('eslint', [...lintFiles, '--cache'])
@@ -210,19 +167,6 @@ for (const fix of [false, true]) {
     `run all checks${fix ? ', automatic fixes,' : ''} and unit tests`
   )
 }
-
-const deploy = async () => {
-  require('dotenv').config()
-  const { deployFromEnv } = require('./scripts/deploy')
-  await deployFromEnv()
-}
-
-task('deploy', dockerPushTask, deploy).description(
-  'build and push docker image and deploy to AWS Elastic Container Service'
-)
-task('deploy:built', deploy).description(
-  'deploy already built and pushed docker image to AWS Elastic Container Service'
-)
 
 task('open:coverage', () => {
   require('opn')('coverage/lcov-report/index.html')

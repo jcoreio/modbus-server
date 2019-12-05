@@ -1,22 +1,22 @@
-# ecs-task-skeleton
+# typescript-node-project-skeleton
 
-Skeleton for deploying a node.js application to AWS ECS using CloudFormation
+Skeleton for a node.js library written in TypeScript
 
 ## Quick start
 
 ```sh
-npx 0-60 clone https://github.com/jcoreio/ecs-task-skeleton.git
+npx 0-60 clone https://github.com/jcoreio/typescript-node-project-skeleton.git
 ```
 
 ## Tools used
 
+- TypeScript
 - babel 7
 - mocha
 - chai
 - istanbul
 - nyc
 - eslint
-- flow
 - prettier
 - husky
 - semantic-release
