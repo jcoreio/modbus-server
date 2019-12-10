@@ -40,8 +40,11 @@
     }
   },
   "nyc": {
+    "extension": [
+      ".ts"
+    ],
     "include": [
-      "src/**/*.js"
+      "src/**/*.ts"
     ],
     "require": [
       "@babel/register"

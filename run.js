@@ -126,7 +126,10 @@ function testRecipe(
 
   return rule =>
     spawn(command, [...args, ...rule.args], {
-      env: env('test', 'local'),
+      env: {
+        BABEL_ENV: coverage ? 'coverage' : 'test',
+        ...env(),
+      },
       stdio: 'inherit',
     })
 }
