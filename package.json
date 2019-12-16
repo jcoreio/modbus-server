@@ -3,6 +3,7 @@
   "version": "0.0.0-development",
   "description": "Skeleton for a node.js library written in TypeScript",
   "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "engines": {
     "node": ">=8.0.0"
   },
