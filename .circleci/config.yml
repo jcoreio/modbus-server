@@ -27,8 +27,17 @@ jobs:
           paths:
             - ~/.cache/yarn
       - run:
+          name: lint
+          command: ./run lint
+      - run:
+          name: check types
+          command: ./run types
+      - run:
+          name: test
+          command: ./run test
+      - run:
           name: build
-          command: yarn run prepublishOnly
+          command: ./run build
       - run:
           name: release
-          command: yarn run semantic-release || true
+          command: yarn run semantic-release
