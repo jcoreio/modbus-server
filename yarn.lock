@@ -876,10 +876,10 @@
   dependencies:
     find-up "^4.0.0"
 
-"@jcoreio/commitlint-config@^1.1.0":
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/@jcoreio/commitlint-config/-/commitlint-config-1.1.0.tgz#1aedfb428bf26e9a693c82cbb0d6986c10270d59"
-  integrity sha512-yrVpb+x0z88ZQEaPg7tbP/mgehecY8b5DvdkYQ1k0m6NGbNmlaCGmFOaSBBf20bSJu5vn+OwKxXI8kmMBqkX0Q==
+"@jcoreio/commitlint-config@^1.1.1":
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/@jcoreio/commitlint-config/-/commitlint-config-1.1.1.tgz#7f5694bb142820ad986670ce67b2ba24ca1a4b3b"
+  integrity sha512-lXgShrV6luoDXwpsFq6WVV7PR10JxQ3H4AlF6Y770uJEvo2lPPDZ3wCY9RBnJhNm1wUBLowVbsKFtuWaxsRAyA==
   dependencies:
     "@commitlint/config-conventional" "^6.1.3"
 

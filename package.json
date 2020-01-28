@@ -78,7 +78,7 @@
     "@babel/register": "^7.7.0",
     "@babel/runtime": "^7.7.1",
     "@commitlint/cli": "^8.2.0",
-    "@jcoreio/commitlint-config": "^1.1.0",
+    "@jcoreio/commitlint-config": "^1.1.1",
     "@types/chai": "^4.2.6",
     "@types/mocha": "^5.2.7",
     "@typescript-eslint/eslint-plugin": "^2.7.0",
