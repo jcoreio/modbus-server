@@ -80,7 +80,9 @@
     "@commitlint/cli": "^8.2.0",
     "@jcoreio/commitlint-config": "^1.1.1",
     "@types/chai": "^4.2.6",
+    "@types/fs-extra": "^8.0.1",
     "@types/mocha": "^5.2.7",
+    "@types/touch": "^3.1.1",
     "@typescript-eslint/eslint-plugin": "^2.7.0",
     "@typescript-eslint/parser": "^2.7.0",
     "babel-plugin-istanbul": "^5.1.0",
@@ -108,6 +110,7 @@
     "semantic-release": "^15.1.4",
     "semver": "^6.3.0",
     "touch": "^3.1.0",
+    "ts-node": "^8.6.2",
     "typescript": "^3.7.2"
   },
   "dependencies": {},

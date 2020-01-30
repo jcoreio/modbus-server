@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @flow
 
 'use strict'
 
@@ -12,4 +11,5 @@ if (!semver.satisfies(nodeVersion, requiredNodeVersion)) {
   process.exit(1)
 }
 
-require('./run.js')
+require('ts-node').register()
+require('./run.ts')

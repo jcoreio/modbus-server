@@ -1,14 +1,11 @@
-#!/usr/bin/env node
+/* eslint-disable  @typescript-eslint/no-var-requires,  @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-explicit-any */
 
-'use strict'
+import path from 'path'
+import { execSync } from 'child_process'
+import touch from 'touch'
+import fs from 'fs-extra'
+import chalk from 'chalk'
 
-/* eslint-disable  @typescript-eslint/no-var-requires,  @typescript-eslint/explicit-function-return-type */
-
-const path = require('path')
-const { execSync } = require('child_process')
-const touch = require('touch')
-const fs = require('fs-extra')
-const chalk = require('chalk')
 const Promake = require('promake')
 
 const promake = new Promake()
@@ -24,7 +21,7 @@ process.env.PATH = process.env.PATH
 
 const { rule, task, exec, cli } = promake
 
-const spawn = (command, args, options) => {
+const spawn = (command: string, args?: Array<string>, options?: any) => {
   if (!Array.isArray(args)) {
     options = args
     args = []
@@ -37,7 +34,7 @@ const spawn = (command, args, options) => {
   })
 }
 
-function remove(path /* : string */) /* : Promise<void> */ {
+function remove(path: string): Promise<void> {
   // eslint-disable-next-line no-console
   console.error(
     chalk.gray('$'),
@@ -89,7 +86,7 @@ task('types', 'node_modules', () => spawn('tsc', ['--noEmit'])).description(
   'check files with TypeScript'
 )
 
-const lintFiles = ['run.js', 'src/**/*.ts', 'test/**/*.js', 'test/**/*.ts']
+const lintFiles = ['run.ts', 'src/**/*.ts', 'test/**/*.js', 'test/**/*.ts']
 
 task('lint', ['node_modules'], () =>
   spawn('eslint', [...lintFiles, '--cache'])
@@ -101,15 +98,13 @@ task('lint:watch', 'node_modules', () =>
   spawn('esw', ['-w', ...lintFiles, '--changed', '--cache'])
 ).description('run eslint in watch mode')
 
-function testRecipe(
-  options /* : {
-  unit?: boolean,
-  integration?: boolean,
-  coverage?: boolean,
-  watch?: boolean,
-  debug?: boolean,
-} */
-) /* : (rule: {args: Array<string>}) => Promise<void> */ {
+function testRecipe(options: {
+  unit?: boolean
+  integration?: boolean
+  coverage?: boolean
+  watch?: boolean
+  debug?: boolean
+}): (rule: { args: Array<string> }) => Promise<void> {
   const { unit, integration, coverage, watch, debug } = options
   const args = ['./test/configure.js']
   if (watch) args.push('./test/clearConsole.js')
