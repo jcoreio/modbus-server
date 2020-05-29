@@ -3,11 +3,8 @@
 !/lib/**/*.js.flow
 !/lib/**/*.d.ts
 !/*.md
-!yarn.lock
 /src
 /test
 /coverage
-/flow-typed
 __tests__
 /.*
-!/.flowconfig
