@@ -45,8 +45,8 @@ function remove(path: string): Promise<void> {
   return fs.remove(path)
 }
 
-rule('node_modules', ['package.json', 'yarn.lock'], async () => {
-  await exec('yarn --ignore-scripts')
+rule('node_modules', ['package.json', 'pnpm-lock.yaml'], async () => {
+  await exec('pnpm install')
   await touch('node_modules')
 })
 
