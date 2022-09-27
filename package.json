@@ -1,7 +1,7 @@
 {
-  "name": "@jcoreio/typescript-node-project-skeleton",
+  "name": "@jcoreio/modbus-server",
   "version": "0.0.0-development",
-  "description": "Skeleton for a node.js library written in TypeScript",
+  "description": "modbus server that allows writes and read-backs",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "engines": {
@@ -55,18 +55,18 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/jcoreio/typescript-node-project-skeleton.git"
+    "url": "https://github.com/jcoreio/modbus-server.git"
   },
   "keywords": [
-    "TypeScript",
-    "skeleton"
+    "modbus",
+    "server"
   ],
   "author": "Jason McLaurin",
   "license": "UNLICENSED",
   "bugs": {
-    "url": "https://github.com/jcoreio/typescript-node-project-skeleton/issues"
+    "url": "https://github.com/jcoreio/modbus-server/issues"
   },
-  "homepage": "https://github.com/jcoreio/typescript-node-project-skeleton#readme",
+  "homepage": "https://github.com/jcoreio/modbus-server#readme",
   "devDependencies": {
     "@babel/cli": "^7.7.0",
     "@babel/core": "^7.7.0",
