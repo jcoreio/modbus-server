@@ -15,11 +15,15 @@ const MODBUS_FN_CODE_WRITE_MULTIPLE_REGS = 16
 
 const MODBUS_ADDRESSES_PER_OP = 10000
 
-const ADDRESS_AND_REG_COUNT_OVERHEAD = 5
+const ADDRESS_AND_REG_COUNT_OVERHEAD = 4
+// Add 1 extra byte here because numBytes, which is redundant, is the 5th
+// byte, located after the address and register count
+const ADDRESS_AND_REG_COUNT_OVERHEAD_FOR_WRITE =
+  ADDRESS_AND_REG_COUNT_OVERHEAD + 1
 
 function readStartAddressAndRegCount(
   buf: Buffer
-): { startAddress: number; regCount: number; numBytes: number } {
+): { startAddress: number; regCount: number } {
   if (buf.length < ADDRESS_AND_REG_COUNT_OVERHEAD)
     throw Error(
       `data buffer is too short to read address and register count: got ${buf.length}, must be at least ${ADDRESS_AND_REG_COUNT_OVERHEAD}`
@@ -27,7 +31,6 @@ function readStartAddressAndRegCount(
   return {
     startAddress: buf.readUInt16BE(0),
     regCount: buf.readUInt16BE(2),
-    numBytes: buf.readUInt8(4),
   }
 }
 
@@ -86,7 +89,8 @@ export default class ModbusServer {
 
   private handleWriteMultipleRegs(rxData: Buffer): Buffer {
     const { startAddress, regCount } = readStartAddressAndRegCount(rxData)
-    const expectedLength = regCount * 2 + ADDRESS_AND_REG_COUNT_OVERHEAD
+    const expectedLength =
+      regCount * 2 + ADDRESS_AND_REG_COUNT_OVERHEAD_FOR_WRITE
     if (expectedLength !== rxData.length)
       throw Error(
         `unexpected length of write request for ${regCount} regs: expected ${expectedLength} bytes, got ${rxData.length}`
@@ -94,7 +98,7 @@ export default class ModbusServer {
     rxData.copy(
       this.numericRegs,
       startAddress * 2,
-      ADDRESS_AND_REG_COUNT_OVERHEAD
+      ADDRESS_AND_REG_COUNT_OVERHEAD_FOR_WRITE
     )
     return getWriteAckResponse({ startAddress, regCount })
   }
