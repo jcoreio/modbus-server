@@ -15,18 +15,19 @@ const MODBUS_FN_CODE_WRITE_MULTIPLE_REGS = 16
 
 const MODBUS_ADDRESSES_PER_OP = 10000
 
-const ADDRESS_AND_REG_COUNT_OVERHEAD = 4
+const ADDRESS_AND_REG_COUNT_OVERHEAD = 5
 
 function readStartAddressAndRegCount(
   buf: Buffer
-): { startAddress: number; regCount: number } {
+): { startAddress: number; regCount: number; numBytes: number } {
   if (buf.length < ADDRESS_AND_REG_COUNT_OVERHEAD)
     throw Error(
-      `data buffer is too short to read address and register count: got ${buf.length}, must be at least 4`
+      `data buffer is too short to read address and register count: got ${buf.length}, must be at least ${ADDRESS_AND_REG_COUNT_OVERHEAD}`
     )
   return {
     startAddress: buf.readUInt16BE(0),
     regCount: buf.readUInt16BE(2),
+    numBytes: buf.readUInt8(4),
   }
 }
 
@@ -44,10 +45,12 @@ function getWriteAckResponse({
 }
 
 function encodeResponse({
+  unitId,
   functionCode,
   txId,
   data,
 }: {
+  unitId: number
   functionCode: number
   txId: number
   data: Buffer
@@ -56,7 +59,7 @@ function encodeResponse({
   modbusTCPMessage.writeUInt16BE(txId, 0)
   modbusTCPMessage.writeUInt16BE(0, 2) // protocol id
   modbusTCPMessage.writeUInt16BE(data.length + MODBUS_LEN_EXTRA, 4)
-  modbusTCPMessage.writeUInt8(0, 6)
+  modbusTCPMessage.writeUInt8(unitId, 6)
   modbusTCPMessage.writeUInt8(functionCode, 7)
   data.copy(modbusTCPMessage, MODBUS_TCP_HEADER_LEN)
   return modbusTCPMessage
@@ -83,9 +86,16 @@ export default class ModbusServer {
 
   private handleWriteMultipleRegs(rxData: Buffer): Buffer {
     const { startAddress, regCount } = readStartAddressAndRegCount(rxData)
-    const regs = {}
-    rxData.copy(this.numericRegs, startAddress * 2, 4)
-    console.log('wrote to holding regs (4x):', regs)
+    const expectedLength = regCount * 2 + ADDRESS_AND_REG_COUNT_OVERHEAD
+    if (expectedLength !== rxData.length)
+      throw Error(
+        `unexpected length of write request for ${regCount} regs: expected ${expectedLength} bytes, got ${rxData.length}`
+      )
+    rxData.copy(
+      this.numericRegs,
+      startAddress * 2,
+      ADDRESS_AND_REG_COUNT_OVERHEAD
+    )
     return getWriteAckResponse({ startAddress, regCount })
   }
 
@@ -100,7 +110,7 @@ export default class ModbusServer {
       throw Error(`modbus TCP message should be at least 8 bytes`)
     const txId = rxBuf.readUInt16BE(0)
     const protocolId = rxBuf.readUInt16BE(2)
-    // const unitId = rxBuf.readUInt8(6)
+    const unitId = rxBuf.readUInt8(6)
     const functionCode = rxBuf.readUInt8(7)
 
     if (protocolId !== 0) throw Error(`unexpected protocol id: ${protocolId}`)
@@ -132,7 +142,7 @@ export default class ModbusServer {
 
     if (response)
       writePacketCallback(
-        encodeResponse({ functionCode, txId, data: response })
+        encodeResponse({ unitId, functionCode, txId, data: response })
       )
   }
 }
