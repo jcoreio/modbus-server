@@ -4,14 +4,16 @@ import {
   WritePacketCallback,
 } from './ModbusCommon'
 
-const MODBUS_FN_CODE_READ_DISCRETE_OUTPUTS = 1
-const MODBUS_FN_CODE_READ_DISCRETE_INPUTS = 2
-const MODBUS_FN_CODE_READ_OUTPUT_REGS = 3
-const MODBUS_FN_CODE_READ_INPUT_REGS = 4
-const MODBUS_FN_CODE_WRITE_SINGLE_COIL = 5
-const MODBUS_FN_CODE_WRITE_SINGLE_REG = 6
-const MODBUS_FN_CODE_WRITE_MULTIPLE_DISCRETE = 15
-const MODBUS_FN_CODE_WRITE_MULTIPLE_REGS = 16
+enum ModbusFunction {
+  READ_DISCRETE_OUTPUTS = 1,
+  READ_DISCRETE_INPUTS = 2,
+  READ_OUTPUT_REGS = 3,
+  READ_INPUT_REGS = 4,
+  WRITE_SINGLE_DISCRETE = 5,
+  WRITE_SINGLE_REG = 6,
+  WRITE_MULTIPLE_DISCRETE = 15,
+  WRITE_MULTIPLE_REGS = 16,
+}
 
 const MODBUS_ADDRESSES_PER_OP = 10000
 
@@ -20,6 +22,8 @@ const ADDRESS_AND_REG_COUNT_OVERHEAD = 4
 // byte, located after the address and register count
 const ADDRESS_AND_REG_COUNT_OVERHEAD_FOR_WRITE =
   ADDRESS_AND_REG_COUNT_OVERHEAD + 1
+
+const WRITE_SINGLE_REG_PAYLOAD_LEN = 4
 
 function readStartAddressAndRegCount(
   buf: Buffer
@@ -87,6 +91,18 @@ export default class ModbusServer {
     return response
   }
 
+  private handleWriteSingleReg(rxData: Buffer): Buffer {
+    if (WRITE_SINGLE_REG_PAYLOAD_LEN !== rxData.length)
+      throw Error(
+        `unexpected length of write single register request payload: expected ${WRITE_SINGLE_REG_PAYLOAD_LEN}, got ${rxData.length}`
+      )
+    const address = rxData.readUInt16BE(0)
+    const value = rxData.readUInt16BE(2)
+    this.numericRegs.writeUInt16BE(value, address * 2)
+    // for a write single reg request, we can just echo back the request payload
+    return rxData
+  }
+
   private handleWriteMultipleRegs(rxData: Buffer): Buffer {
     const { startAddress, regCount } = readStartAddressAndRegCount(rxData)
     const expectedLength =
@@ -122,22 +138,27 @@ export default class ModbusServer {
     const rxData = rxBuf.slice(8)
     let response: Buffer | undefined
 
+    const unsupported = (functionCode: number): never => {
+      throw Error(`unsupported modbus function code: ${functionCode}`)
+    }
+
     switch (functionCode) {
-      case MODBUS_FN_CODE_READ_DISCRETE_OUTPUTS:
-        break
-      case MODBUS_FN_CODE_READ_DISCRETE_INPUTS:
-        break
-      case MODBUS_FN_CODE_READ_OUTPUT_REGS:
-      case MODBUS_FN_CODE_READ_INPUT_REGS:
+      case ModbusFunction.READ_DISCRETE_OUTPUTS:
+        unsupported(functionCode)
+      case ModbusFunction.READ_DISCRETE_INPUTS:
+        unsupported(functionCode)
+      case ModbusFunction.READ_OUTPUT_REGS:
+      case ModbusFunction.READ_INPUT_REGS:
         response = this.handleReadMultipleRegs(rxData)
         break
-      case MODBUS_FN_CODE_WRITE_SINGLE_COIL:
+      case ModbusFunction.WRITE_SINGLE_DISCRETE:
+        unsupported(functionCode)
+      case ModbusFunction.WRITE_SINGLE_REG:
+        response = this.handleWriteSingleReg(rxData)
         break
-      case MODBUS_FN_CODE_WRITE_SINGLE_REG:
-        break
-      case MODBUS_FN_CODE_WRITE_MULTIPLE_DISCRETE:
-        break
-      case MODBUS_FN_CODE_WRITE_MULTIPLE_REGS:
+      case ModbusFunction.WRITE_MULTIPLE_DISCRETE:
+        unsupported(functionCode)
+      case ModbusFunction.WRITE_MULTIPLE_REGS:
         response = this.handleWriteMultipleRegs(rxData)
         break
       default:

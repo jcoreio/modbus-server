@@ -18,6 +18,7 @@ const MODBUS_OVERHEAD_BEFORE_LENGTH = 6
 
 enum FunctionCode {
   READ_MULTIPLE_HOLDING_REGS = 3,
+  WRITE_SINGLE_HOLDING_REG = 6,
   WRITE_MULTIPLE_HOLDING_REGS = 16,
 }
 
@@ -65,18 +66,18 @@ function parseResponse(buf: Buffer): ModbusResponse {
   }
 }
 
+function requireResponse(responses: Buffer[]): ModbusResponse {
+  expect(responses.length).to.equal(1)
+  const response = responses[0]
+  responses.pop()
+  return parseResponse(response)
+}
+
 describe('modbus-server', () => {
   /* eslint-disable-next-line @typescript-eslint/no-empty-function */
-  it('allows write and read-back', () => {
+  it('writes and reads back multiple holding registers', () => {
     const modbusServer = new ModbusServer()
     const responses: Buffer[] = []
-
-    const requireResponse = (): ModbusResponse => {
-      expect(responses.length).to.equal(1)
-      const response = responses[0]
-      responses.pop()
-      return parseResponse(response)
-    }
 
     const conn = new ModbusConnection({
       modbusServer,
@@ -106,7 +107,7 @@ describe('modbus-server', () => {
       })
     )
 
-    const writeResponse: ModbusResponse = requireResponse()
+    const writeResponse: ModbusResponse = requireResponse(responses)
     expect(writeResponse.txnId).to.equal(writeTxnId)
     expect(writeResponse.unitId).to.equal(unitId)
     expect(writeResponse.functionCode).to.equal(
@@ -134,7 +135,7 @@ describe('modbus-server', () => {
       })
     )
 
-    const readResponse = requireResponse()
+    const readResponse = requireResponse(responses)
     expect(readResponse.txnId).to.equal(readTxnId)
     expect(readResponse.unitId).to.equal(unitId)
     expect(readResponse.functionCode).to.equal(
@@ -146,5 +147,73 @@ describe('modbus-server', () => {
     const readResponseNumBytes = readResponsePayload.readUInt8(0)
     expect(readResponseNumBytes).to.equal(TEST_NUM_REGS * 2)
     expect(readResponsePayload.slice(1)).to.deep.equal(testData)
+  })
+
+  it('writes and reads back a single holding register', () => {
+    const modbusServer = new ModbusServer()
+    const responses: Buffer[] = []
+
+    const conn = new ModbusConnection({
+      modbusServer,
+      writePacketCallback: (response: Buffer): void => {
+        responses.push(response)
+      },
+    })
+
+    const REG_ADDRESS = 9876
+    const REG_VALUE = 432
+
+    const writeRequest = Buffer.alloc(4)
+    writeRequest.writeUInt16BE(REG_ADDRESS, 0)
+    writeRequest.writeUInt16BE(REG_VALUE, 2)
+
+    const writeTxnId = 78
+    const unitId = 11
+    conn.onData(
+      frameRequest({
+        txnId: writeTxnId,
+        unitId,
+        functionCode: FunctionCode.WRITE_SINGLE_HOLDING_REG,
+        payload: writeRequest,
+      })
+    )
+
+    const writeResponse: ModbusResponse = requireResponse(responses)
+    expect(writeResponse.txnId).to.equal(writeTxnId)
+    expect(writeResponse.unitId).to.equal(unitId)
+    expect(writeResponse.functionCode).to.equal(
+      FunctionCode.WRITE_SINGLE_HOLDING_REG
+    )
+    const { payload: writeResponsePayload } = writeResponse
+    expect(writeResponsePayload).to.deep.equal(writeRequest)
+
+    const readRequestPayload = Buffer.alloc(4)
+    readRequestPayload.writeUInt16BE(REG_ADDRESS, 0)
+    readRequestPayload.writeUInt16BE(1, 2) // read one register
+
+    const readTxnId = writeTxnId + 1
+
+    conn.onData(
+      frameRequest({
+        txnId: readTxnId,
+        unitId,
+        functionCode: FunctionCode.READ_MULTIPLE_HOLDING_REGS,
+        payload: readRequestPayload,
+      })
+    )
+
+    const readResponse = requireResponse(responses)
+    expect(readResponse.txnId).to.equal(readTxnId)
+    expect(readResponse.unitId).to.equal(unitId)
+    expect(readResponse.functionCode).to.equal(
+      FunctionCode.READ_MULTIPLE_HOLDING_REGS
+    )
+    const { payload: readResponsePayload } = readResponse
+    // 2 bytes for register + 1 byte for num bytes
+    expect(readResponsePayload.length).to.equal(3)
+    const readResponseNumBytes = readResponsePayload.readUInt8(0)
+    expect(readResponseNumBytes).to.equal(2)
+    const readValue = readResponsePayload.readUInt16BE(1)
+    expect(readValue).to.equal(REG_VALUE)
   })
 })
