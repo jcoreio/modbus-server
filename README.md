@@ -11,6 +11,9 @@ runtime.
 Mirrors all holding registers to the input register space. Accessing to discrete inputs and outputs is not
 currently supported.
 
+When running as a service, saves register values to disk once per minute so that register values persist across
+restarts.
+
 ## Installation
 
 Download the latest release onto your device:
