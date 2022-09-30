@@ -31,13 +31,30 @@ tar xf modbus-server-v1.0.0.tar.bz2
 Run the `install.sh` script with `sudo`:
 
 ```shell
-sudo ./modbus-server/install
+sudo ./modbus-server/install.sh
 ```
 
 To check that the server is running:
 
 ```shell
 sudo systemctl status modbus-server
+```
+
+You should see something like:
+
+```
+● modbus-server.service - Modbus Server
+   Loaded: loaded (/etc/systemd/system/modbus-server.service; enabled; vendor preset: enabled)
+   Active: active (running) since Fri 2022-09-30 16:33:54 CDT; 21s ago
+ Main PID: 6212 (node)
+    Tasks: 11 (limit: 2062)
+   CGroup: /system.slice/modbus-server.service
+           └─6212 /usr/local/bin/node /opt/modbus-server/lib/index.js
+
+Sep 30 16:33:54 raspberrypi systemd[1]: Started Modbus Server.
+Sep 30 16:33:55 raspberrypi node[6212]: creating data directory: /opt/modbus-server/data
+Sep 30 16:33:55 raspberrypi node[6212]: listening for modbus connections on port 502
+Sep 30 16:33:56 raspberrypi node[6212]: client 1 connected
 ```
 
 To start or stop the server:
