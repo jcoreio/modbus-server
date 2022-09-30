@@ -76,7 +76,6 @@ export default class ModbusServer {
   private readonly numericRegs: Buffer = Buffer.alloc(
     MODBUS_ADDRESSES_PER_OP * 2
   ) // 16 bits per reg
-  private readonly coils: Buffer = Buffer.alloc(MODBUS_ADDRESSES_PER_OP / 8) // 8 coils per byte
 
   private handleReadMultipleRegs(rxData: Buffer): Buffer {
     const { startAddress, regCount } = readStartAddressAndRegCount(rxData)
