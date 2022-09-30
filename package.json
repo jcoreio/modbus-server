@@ -77,6 +77,7 @@
     "@babel/runtime": "^7.7.1",
     "@commitlint/cli": "^8.2.0",
     "@jcoreio/commitlint-config": "^1.1.1",
+    "@semantic-release/exec": "^6.0.3",
     "@types/chai": "^4.2.6",
     "@types/fs-extra": "^8.0.1",
     "@types/mocha": "^5.2.7",
@@ -106,13 +107,32 @@
     "promake": "^3.1.2",
     "promisify-child-process": "^3.1.1",
     "rimraf": "^2.6.0",
-    "semantic-release": "^17.3.1",
+    "semantic-release": "^19.0.5",
     "semver": "^6.3.0",
     "touch": "^3.1.0",
     "ts-node": "^8.6.2",
     "typescript": "^3.7.2"
   },
-  "dependencies": {},
+  "release": {
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      [
+        "@semantic-release/exec",
+        {
+          "prepareCmd": "./run bundle \"${nextRelease.version}\""
+        }
+      ],
+      [
+        "@semantic-release/github",
+        {
+          "assets": [
+            "dist"
+          ]
+        }
+      ]
+    ]
+  },
   "renovate": {
     "extends": [
       ":separateMajorReleases",
