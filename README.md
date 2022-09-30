@@ -1,10 +1,23 @@
 # modbus-server
 
-modbus server that allows writes and read-backs
+Lightweight zero-dependency Modbus TCP server that allows writes and read-backs across the holding
+register space. Useful for communicating between two devices that only support Modbus TCP client
+communications.
+
+Runs as an OS service on the [JCore Iron Pi](https://www.jcore.io/iron-pi) and most
+other devices with a modern Linux OS and [Node.js](https://nodejs.org/en/download/) version 10 or newer
+runtime.
+
+Mirrors all holding registers to the input register space. Accessing to discrete inputs and outputs is not
+currently supported.
 
 ## Installation
 
-Download the latest tar.bz distribution bundle from [the modbus-server releases page](https://github.com/jcoreio/modbus-server/releases)
+Download the latest release onto your device:
+
+```shell
+wget https://github.com/jcoreio/modbus-server/releases/download/v1.0.0/modbus-server-v1.0.0.tar.bz2
+```
 
 Unpack the bundle:
 
@@ -40,6 +53,12 @@ sudo systemctl disable modbus-server
 
 ## Development
 
+### Requirements
+
+Development requires [Node.js](https://nodejs.org/en/download/) and the [pnpm](https://pnpm.io/) package manager.
+
+### Getting Started
+
 Install the project and its dependencies:
 
 ```shell
@@ -54,10 +73,4 @@ Run all checks and format the code:
 
 ```shell
 ./run prep
-```
-
-Generate a distribution bundle:
-
-```shell
-./run bundle
 ```
