@@ -89,13 +89,11 @@ export default class PersistanceHandler {
     const { saveHandlerRunning, saveTimeout, lastSaveBegin } = this
     if (saveHandlerRunning && !saveTimeout) {
       const timeSinceLastSave = lastSaveBegin ? Date.now() - lastSaveBegin : 0
-      this.saveTimeout = setTimeout(
-        () =>
-          this.save().catch((err: Error) => {
-            console.log('uncaught error during save operation', err)
-          }),
-        Math.max(this.saveInterval - timeSinceLastSave, MIN_WAIT)
-      )
+      this.saveTimeout = setTimeout(() => {
+        this.save().catch((err: Error) => {
+          console.log('uncaught error during save operation', err)
+        })
+      }, Math.max(this.saveInterval - timeSinceLastSave, MIN_WAIT))
     }
   }
 
@@ -107,6 +105,7 @@ export default class PersistanceHandler {
   private async doSave(): Promise<void> {
     this.saveTimeout = undefined
     this.lastSaveBegin = Date.now()
+    let success = false
     try {
       const { numericRegs, maxNumericRegAddress } = this.modbusServer
       const dataLen = maxNumericRegAddress * 2
@@ -118,12 +117,13 @@ export default class PersistanceHandler {
         this.prevSavedFileData = fileToSave
         await writeFile(FILE_PATH, fileToSave)
       }
-      this.scheduleSave()
+      success = true
     } catch (err) {
       this.saveHandlerRunning = false
       console.log('caught error while saving register states', err)
     } finally {
       this.savePromise = undefined
     }
+    if (success) this.scheduleSave()
   }
 }

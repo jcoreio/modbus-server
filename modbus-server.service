@@ -1,0 +1,15 @@
+[Unit]
+Description=Modbus Server
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/node /opt/modbus-server/lib/index.js
+WorkingDirectory=/opt/modbus-server
+Environment="SAVE_INTERVAL=60"
+StandardOutput=inherit
+StandardError=inherit
+Restart=on-failure
+User=root
+
+[Install]
+WantedBy=multi-user.target

@@ -75,12 +75,38 @@ const buildJSTask = task('build:js', ['node_modules'], () =>
   ])
 )
 
-const buildTypesTask = task('build:types', ['node_modules'], () =>
-  spawn('tsc', ['--emitDeclarationOnly', '-p', 'src'])
-)
+// const buildTypesTask = task('build:types', ['node_modules'], () =>
+//   spawn('tsc', ['--emitDeclarationOnly', '-p', 'src'])
+// )
+
+const bundleTask = task('bundle', [buildJSTask], async () => {
+  const root = __dirname
+  const buildDir = path.join(root, 'build')
+  const bundleDir = path.join(buildDir, 'modbus-server')
+  await fs.emptyDir(bundleDir)
+  await spawn(
+    'cp',
+    [
+      '-r',
+      'lib',
+      'install.sh',
+      'modbus-server.service',
+      'package.json',
+      bundleDir,
+    ],
+    { cwd: root }
+  )
+  await spawn('chmod', ['+x', 'install.sh'], { cwd: bundleDir })
+  const distDir = path.join(root, 'dist')
+  await fs.ensureDir(distDir)
+  const { version } = require('./package.json')
+  const tarFile = path.join(distDir, `modbus-server-v${version}.tar.bz2`)
+  console.error(`writing distribution bundle to ${tarFile}`)
+  await spawn('tar', ['cjf', tarFile, 'modbus-server'], { cwd: buildDir })
+})
 
 // Just transpile from src to lib
-task('build', [cleanTask, buildJSTask, buildTypesTask])
+task('build', [cleanTask, buildJSTask, bundleTask])
 
 task('types', 'node_modules', () => spawn('tsc', ['--noEmit'])).description(
   'check files with TypeScript'
