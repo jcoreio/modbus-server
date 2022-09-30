@@ -73,9 +73,8 @@ function encodeResponse({
 }
 
 export default class ModbusServer {
-  private readonly numericRegs: Buffer = Buffer.alloc(
-    MODBUS_ADDRESSES_PER_OP * 2
-  ) // 16 bits per reg
+  readonly numericRegs: Buffer = Buffer.alloc(MODBUS_ADDRESSES_PER_OP * 2) // 16 bits per reg
+  maxNumericRegAddress = 0
 
   private handleReadMultipleRegs(rxData: Buffer): Buffer {
     const { startAddress, regCount } = readStartAddressAndRegCount(rxData)
@@ -99,6 +98,7 @@ export default class ModbusServer {
     const value = rxData.readUInt16BE(2)
     this.numericRegs.writeUInt16BE(value, address * 2)
     // for a write single reg request, we can just echo back the request payload
+    this.maxNumericRegAddress = Math.max(this.maxNumericRegAddress, address)
     return rxData
   }
 
@@ -114,6 +114,10 @@ export default class ModbusServer {
       this.numericRegs,
       startAddress * 2,
       ADDRESS_AND_REG_COUNT_OVERHEAD_FOR_WRITE
+    )
+    this.maxNumericRegAddress = Math.max(
+      this.maxNumericRegAddress,
+      startAddress + regCount
     )
     return getWriteAckResponse({ startAddress, regCount })
   }
