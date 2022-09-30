@@ -24,10 +24,14 @@ const server = createServer((socket: Socket) => {
       socket.destroy()
     }
   })
+  socket.on('error', (err: Error) => {
+    console.log(`connection ${connectionIdx} got socket error:`, err)
+    socket.destroy()
+  })
 })
 
 server.on('error', (err: Error) => {
-  console.error('server error:', err)
+  console.log('server error:', err)
   process.exit(1)
 })
 
