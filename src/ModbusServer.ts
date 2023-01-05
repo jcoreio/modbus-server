@@ -119,9 +119,8 @@ function validateAddressAndCount(
 
 export default class ModbusServer {
   readonly numericRegs: Buffer = Buffer.alloc(MODBUS_ADDRESSES_PER_OP * 2) // 16 bits per reg
-  readonly coils: boolean[] = new Array(MODBUS_ADDRESSES_PER_OP).fill(false)
+  readonly coils: boolean[] = []
   maxRegAddress = 0
-  maxCoilAddress = 0
 
   private handleReadCoils(rxData: Buffer): Buffer {
     const { startAddress, regCount } = readStartAddressAndRegCount(rxData)
@@ -186,7 +185,6 @@ export default class ModbusServer {
         )
     }
     this.coils[address] = boolValue
-    this.maxCoilAddress = Math.max(this.maxCoilAddress, address)
     // for a write single coil request, we can just echo back the request payload
     return rxData
   }
@@ -233,7 +231,6 @@ export default class ModbusServer {
         byteValue = rxData[++byteIdx]
       }
     }
-    this.maxCoilAddress = Math.max(this.maxCoilAddress, startAddress + regCount)
     return getWriteAckResponse({ startAddress, regCount })
   }
 
