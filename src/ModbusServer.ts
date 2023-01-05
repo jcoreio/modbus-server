@@ -1,3 +1,4 @@
+import { decodeBoolean, encodeBoolean } from './booleanCodec'
 import {
   MODBUS_LEN_EXTRA,
   MODBUS_TCP_HEADER_LEN,
@@ -129,19 +130,7 @@ export default class ModbusServer {
     const dataBytes = Math.ceil(regCount / 8)
     const response = Buffer.alloc(dataBytes + 1)
     response[0] = dataBytes
-
-    let byteIdx = 1 // offset after writing the length
-    let bitIdx = 0
-    let byteValue = 0
-    const endAddr = startAddress + regCount - 1 // inclusive
-    for (let curAddr = startAddress; curAddr <= endAddr; ++curAddr) {
-      if (this.coils[curAddr]) byteValue |= 1 << bitIdx
-      if (++bitIdx === 8 || curAddr === endAddr) {
-        response[byteIdx++] = byteValue
-        byteValue = 0
-        bitIdx = 0
-      }
-    }
+    encodeBoolean(response, 1, this.coils, startAddress, regCount)
     return response
   }
 
@@ -219,18 +208,13 @@ export default class ModbusServer {
         ModbusErrorCode.BAD_REGISTER_COUNT,
         `unexpected numBytes: got ${actualNumBytes}, expected ${numBytes}`
       )
-
-    const endAddress = startAddress + regCount // exclusive
-    let bitIdx = 0
-    let byteIdx = ADDRESS_AND_REG_COUNT_OVERHEAD_FOR_WRITE
-    let byteValue = rxData[byteIdx]
-    for (let regIdx = startAddress; regIdx < endAddress; ++regIdx) {
-      this.coils[regIdx] = Boolean((byteValue >> bitIdx) & 1)
-      if (++bitIdx === 8) {
-        bitIdx = 0
-        byteValue = rxData[++byteIdx]
-      }
-    }
+    decodeBoolean(
+      this.coils,
+      startAddress,
+      rxData,
+      ADDRESS_AND_REG_COUNT_OVERHEAD_FOR_WRITE,
+      regCount
+    )
     return getWriteAckResponse({ startAddress, regCount })
   }
 
