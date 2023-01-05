@@ -47,12 +47,9 @@ export default class PersistanceHandler {
           `file is truncated: expected ${dataEnd} bytes for ${numRegs} regs, got ${fileLen}`
         )
       const { modbusServer } = this
-      const { numericRegs, maxNumericRegAddress } = modbusServer
+      const { numericRegs, maxRegAddress } = modbusServer
       fileData.copy(numericRegs, 0, FILE_HEADER_LEN, dataEnd)
-      modbusServer.maxNumericRegAddress = Math.max(
-        maxNumericRegAddress,
-        numRegs
-      )
+      modbusServer.maxRegAddress = Math.max(maxRegAddress, numRegs)
       console.log(
         `loaded modbus server state (${numRegs} registers) from ${FILE_PATH}`
       )
@@ -107,11 +104,11 @@ export default class PersistanceHandler {
     this.lastSaveBegin = Date.now()
     let success = false
     try {
-      const { numericRegs, maxNumericRegAddress } = this.modbusServer
-      const dataLen = maxNumericRegAddress * 2
+      const { numericRegs, maxRegAddress } = this.modbusServer
+      const dataLen = maxRegAddress * 2
       const fileToSave = Buffer.alloc(FILE_HEADER_LEN + dataLen)
       fileToSave.writeUInt32LE(FILE_PREAMBLE, 0)
-      fileToSave.writeUInt32LE(maxNumericRegAddress, 4)
+      fileToSave.writeUInt32LE(maxRegAddress, 4)
       numericRegs.copy(fileToSave, FILE_HEADER_LEN, 0, dataLen)
       if (!fileToSave.equals(this.prevSavedFileData)) {
         this.prevSavedFileData = fileToSave

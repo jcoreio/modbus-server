@@ -5,17 +5,32 @@ import {
 } from './ModbusCommon'
 
 enum ModbusFunction {
-  READ_DISCRETE_OUTPUTS = 1,
+  READ_COILS = 1,
   READ_DISCRETE_INPUTS = 2,
   READ_OUTPUT_REGS = 3,
   READ_INPUT_REGS = 4,
-  WRITE_SINGLE_DISCRETE = 5,
+  WRITE_SINGLE_COIL = 5,
   WRITE_SINGLE_REG = 6,
-  WRITE_MULTIPLE_DISCRETE = 15,
+  WRITE_MULTIPLE_COILS = 15,
   WRITE_MULTIPLE_REGS = 16,
 }
 
-const MODBUS_ADDRESSES_PER_OP = 10000
+const MODBUS_ERROR_FLAG = 0x80
+
+enum ModbusErrorCode {
+  BAD_FUNCTION_CODE = 1,
+  BAD_ADDRESS = 2,
+  BAD_REGISTER_COUNT = 3,
+  INTERNAL_ERROR = 4,
+}
+
+const MODBUS_ADDRESSES_PER_OP = 0x10000
+
+const MAX_COILS_PER_READ_REQUEST = 2000 // 0x7D0
+const MAX_COILS_PER_WRITE_REQUEST = 1968 // 0x7B0
+
+const MAX_REGS_PER_READ_REQUEST = 125 // 0x7D
+const MAX_REGS_PER_WRITE_REQUEST = 123 // 0x7B
 
 const ADDRESS_AND_REG_COUNT_OVERHEAD = 4
 // Add 1 extra byte here because numBytes, which is redundant, is the 5th
@@ -23,7 +38,15 @@ const ADDRESS_AND_REG_COUNT_OVERHEAD = 4
 const ADDRESS_AND_REG_COUNT_OVERHEAD_FOR_WRITE =
   ADDRESS_AND_REG_COUNT_OVERHEAD + 1
 
-const WRITE_SINGLE_REG_PAYLOAD_LEN = 4
+const WRITE_SINGLE_ITEM_PAYLOAD_LEN = 4
+
+class ModbusError extends Error {
+  readonly modbusErrorCode: ModbusErrorCode
+  constructor(modbusErrorCode: ModbusErrorCode, message: string) {
+    super(message)
+    this.modbusErrorCode = modbusErrorCode
+  }
+}
 
 function readStartAddressAndRegCount(
   buf: Buffer
@@ -72,12 +95,61 @@ function encodeResponse({
   return modbusTCPMessage
 }
 
+function validateAddressAndCount(
+  address: number,
+  regCount: number,
+  max: number
+): void {
+  if (!regCount)
+    throw new ModbusError(
+      ModbusErrorCode.BAD_REGISTER_COUNT,
+      'register count cannot be 0'
+    )
+  if (regCount > max)
+    throw new ModbusError(
+      ModbusErrorCode.BAD_REGISTER_COUNT,
+      `register count is ${regCount}, cannot be greater than ${max}`
+    )
+  if (address + regCount >= MODBUS_ADDRESSES_PER_OP)
+    throw new ModbusError(
+      ModbusErrorCode.BAD_ADDRESS,
+      `register address overrun: start ${address} + count ${regCount} > ${MODBUS_ADDRESSES_PER_OP}`
+    )
+}
+
 export default class ModbusServer {
   readonly numericRegs: Buffer = Buffer.alloc(MODBUS_ADDRESSES_PER_OP * 2) // 16 bits per reg
-  maxNumericRegAddress = 0
+  readonly coils: boolean[] = new Array(MODBUS_ADDRESSES_PER_OP).fill(false)
+  maxRegAddress = 0
+  maxCoilAddress = 0
+
+  private handleReadCoils(rxData: Buffer): Buffer {
+    const { startAddress, regCount } = readStartAddressAndRegCount(rxData)
+    validateAddressAndCount(startAddress, regCount, MAX_COILS_PER_READ_REQUEST)
+
+    const dataBytes = Math.ceil(regCount / 8)
+    const response = Buffer.alloc(dataBytes + 1)
+    response[0] = dataBytes
+
+    let byteIdx = 1 // offset after writing the length
+    let bitIdx = 0
+    let byteValue = 0
+    const endAddr = startAddress + regCount - 1 // inclusive
+    for (let curAddr = startAddress; curAddr <= endAddr; ++curAddr) {
+      if (this.coils[curAddr]) byteValue |= 1 << bitIdx
+      if (++bitIdx === 8 || curAddr === endAddr) {
+        response[byteIdx++] = byteValue
+        byteValue = 0
+        bitIdx = 0
+      }
+    }
+    return response
+  }
 
   private handleReadMultipleRegs(rxData: Buffer): Buffer {
     const { startAddress, regCount } = readStartAddressAndRegCount(rxData)
+    validateAddressAndCount(startAddress, regCount, MAX_REGS_PER_READ_REQUEST)
+
     const response = Buffer.alloc(regCount * 2 + 1)
     response.writeUInt8(regCount * 2)
     this.numericRegs.copy(
@@ -89,25 +161,90 @@ export default class ModbusServer {
     return response
   }
 
+  private handleWriteSingleCoil(rxData: Buffer): Buffer {
+    if (WRITE_SINGLE_ITEM_PAYLOAD_LEN !== rxData.length)
+      throw new ModbusError(
+        ModbusErrorCode.BAD_REGISTER_COUNT,
+        `unexpected length of write single coil request payload: expected ${WRITE_SINGLE_ITEM_PAYLOAD_LEN}, got ${rxData.length}`
+      )
+    const address = rxData.readUInt16BE(0)
+    const intValue = rxData.readUInt16BE(2)
+    let boolValue
+    switch (intValue) {
+      case 0:
+        boolValue = false
+        break
+      case 0xff00:
+        boolValue = true
+        break
+      default:
+        throw new ModbusError(
+          ModbusErrorCode.BAD_REGISTER_COUNT,
+          `single coil value must be 0 or 0xFF00, was 0x${intValue.toString(
+            16
+          )}`
+        )
+    }
+    this.coils[address] = boolValue
+    this.maxCoilAddress = Math.max(this.maxCoilAddress, address)
+    // for a write single coil request, we can just echo back the request payload
+    return rxData
+  }
+
   private handleWriteSingleReg(rxData: Buffer): Buffer {
-    if (WRITE_SINGLE_REG_PAYLOAD_LEN !== rxData.length)
-      throw Error(
-        `unexpected length of write single register request payload: expected ${WRITE_SINGLE_REG_PAYLOAD_LEN}, got ${rxData.length}`
+    if (WRITE_SINGLE_ITEM_PAYLOAD_LEN !== rxData.length)
+      throw new ModbusError(
+        ModbusErrorCode.BAD_REGISTER_COUNT,
+        `unexpected length of write single register request payload: expected ${WRITE_SINGLE_ITEM_PAYLOAD_LEN}, got ${rxData.length}`
       )
     const address = rxData.readUInt16BE(0)
     const value = rxData.readUInt16BE(2)
     this.numericRegs.writeUInt16BE(value, address * 2)
     // for a write single reg request, we can just echo back the request payload
-    this.maxNumericRegAddress = Math.max(this.maxNumericRegAddress, address)
+    this.maxRegAddress = Math.max(this.maxRegAddress, address)
     return rxData
+  }
+
+  private handleWriteMultipleCoils(rxData: Buffer): Buffer {
+    const { startAddress, regCount } = readStartAddressAndRegCount(rxData)
+    validateAddressAndCount(startAddress, regCount, MAX_COILS_PER_WRITE_REQUEST)
+    const numBytes = Math.ceil(regCount / 8)
+    const expectedLength = numBytes + ADDRESS_AND_REG_COUNT_OVERHEAD_FOR_WRITE
+    if (expectedLength !== rxData.length)
+      throw new ModbusError(
+        ModbusErrorCode.BAD_REGISTER_COUNT,
+        `unexpected length of write request for ${regCount} coils: expected ${expectedLength} bytes, got ${rxData.length}`
+      )
+    const actualNumBytes = rxData.readUInt8(4)
+    if (actualNumBytes !== numBytes)
+      throw new ModbusError(
+        ModbusErrorCode.BAD_REGISTER_COUNT,
+        `unexpected numBytes: got ${actualNumBytes}, expected ${numBytes}`
+      )
+
+    const endAddress = startAddress + regCount // exclusive
+    let bitIdx = 0
+    let byteIdx = ADDRESS_AND_REG_COUNT_OVERHEAD_FOR_WRITE
+    let byteValue = rxData[byteIdx]
+    for (let regIdx = startAddress; regIdx < endAddress; ++regIdx) {
+      this.coils[regIdx] = Boolean((byteValue >> bitIdx) & 1)
+      if (++bitIdx === 8) {
+        bitIdx = 0
+        byteValue = rxData[++byteIdx]
+      }
+    }
+    this.maxCoilAddress = Math.max(this.maxCoilAddress, startAddress + regCount)
+    return getWriteAckResponse({ startAddress, regCount })
   }
 
   private handleWriteMultipleRegs(rxData: Buffer): Buffer {
     const { startAddress, regCount } = readStartAddressAndRegCount(rxData)
+    validateAddressAndCount(startAddress, regCount, MAX_REGS_PER_WRITE_REQUEST)
     const expectedLength =
       regCount * 2 + ADDRESS_AND_REG_COUNT_OVERHEAD_FOR_WRITE
     if (expectedLength !== rxData.length)
-      throw Error(
+      throw new ModbusError(
+        ModbusErrorCode.INTERNAL_ERROR,
         `unexpected length of write request for ${regCount} regs: expected ${expectedLength} bytes, got ${rxData.length}`
       )
     rxData.copy(
@@ -115,10 +252,7 @@ export default class ModbusServer {
       startAddress * 2,
       ADDRESS_AND_REG_COUNT_OVERHEAD_FOR_WRITE
     )
-    this.maxNumericRegAddress = Math.max(
-      this.maxNumericRegAddress,
-      startAddress + regCount
-    )
+    this.maxRegAddress = Math.max(this.maxRegAddress, startAddress + regCount)
     return getWriteAckResponse({ startAddress, regCount })
   }
 
@@ -129,48 +263,69 @@ export default class ModbusServer {
     rxBuf: Buffer
     writePacketCallback: WritePacketCallback
   }): void {
-    if (rxBuf.length < 8)
-      throw Error(`modbus TCP message should be at least 8 bytes`)
-    const txId = rxBuf.readUInt16BE(0)
-    const protocolId = rxBuf.readUInt16BE(2)
-    const unitId = rxBuf.readUInt8(6)
-    const functionCode = rxBuf.readUInt8(7)
-
-    if (protocolId !== 0) throw Error(`unexpected protocol id: ${protocolId}`)
-
-    const rxData = rxBuf.slice(8)
     let response: Buffer | undefined
+    let txId, unitId, functionCode, responseFunctionCode
+    try {
+      if (rxBuf.length < 8)
+        throw Error(`modbus TCP message should be at least 8 bytes`)
+      txId = rxBuf.readUInt16BE(0)
+      const protocolId = rxBuf.readUInt16BE(2)
+      unitId = rxBuf.readUInt8(6)
+      functionCode = rxBuf.readUInt8(7)
 
-    const unsupported = (functionCode: number): never => {
-      throw Error(`unsupported modbus function code: ${functionCode}`)
+      if (protocolId !== 0)
+        throw new ModbusError(
+          ModbusErrorCode.INTERNAL_ERROR,
+          `unexpected protocol id: ${protocolId}`
+        )
+
+      const rxData = rxBuf.slice(8)
+
+      switch (functionCode) {
+        case ModbusFunction.READ_COILS:
+        case ModbusFunction.READ_DISCRETE_INPUTS:
+          response = this.handleReadCoils(rxData)
+          break
+        case ModbusFunction.READ_OUTPUT_REGS:
+        case ModbusFunction.READ_INPUT_REGS:
+          response = this.handleReadMultipleRegs(rxData)
+          break
+        case ModbusFunction.WRITE_SINGLE_COIL:
+          response = this.handleWriteSingleCoil(rxData)
+          break
+        case ModbusFunction.WRITE_SINGLE_REG:
+          response = this.handleWriteSingleReg(rxData)
+          break
+        case ModbusFunction.WRITE_MULTIPLE_COILS:
+          response = this.handleWriteMultipleCoils(rxData)
+          break
+        case ModbusFunction.WRITE_MULTIPLE_REGS:
+          response = this.handleWriteMultipleRegs(rxData)
+          break
+        default:
+          throw new ModbusError(
+            ModbusErrorCode.BAD_FUNCTION_CODE,
+            `unsupported modbus function code: ${functionCode}`
+          )
+      }
+      responseFunctionCode = functionCode
+    } catch (err) {
+      console.error('error handling request:', err)
+      responseFunctionCode = MODBUS_ERROR_FLAG | (functionCode || 0)
+      const modbusErrorCode =
+        (err as ModbusError).modbusErrorCode || ModbusErrorCode.INTERNAL_ERROR
+      response = Buffer.alloc(1)
+      response.writeUInt8(modbusErrorCode)
     }
 
-    switch (functionCode) {
-      case ModbusFunction.READ_DISCRETE_OUTPUTS:
-        unsupported(functionCode)
-      case ModbusFunction.READ_DISCRETE_INPUTS:
-        unsupported(functionCode)
-      case ModbusFunction.READ_OUTPUT_REGS:
-      case ModbusFunction.READ_INPUT_REGS:
-        response = this.handleReadMultipleRegs(rxData)
-        break
-      case ModbusFunction.WRITE_SINGLE_DISCRETE:
-        unsupported(functionCode)
-      case ModbusFunction.WRITE_SINGLE_REG:
-        response = this.handleWriteSingleReg(rxData)
-        break
-      case ModbusFunction.WRITE_MULTIPLE_DISCRETE:
-        unsupported(functionCode)
-      case ModbusFunction.WRITE_MULTIPLE_REGS:
-        response = this.handleWriteMultipleRegs(rxData)
-        break
-      default:
-        throw Error(`unexpected modbus function code: ${functionCode}`)
-    }
-
-    if (response)
+    if (unitId && responseFunctionCode && txId && response)
       writePacketCallback(
-        encodeResponse({ unitId, functionCode, txId, data: response })
+        encodeResponse({
+          unitId,
+          functionCode: responseFunctionCode,
+          txId,
+          data: response,
+        })
       )
   }
 }
