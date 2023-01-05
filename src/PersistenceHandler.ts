@@ -2,11 +2,15 @@ import { existsSync } from 'fs'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import path from 'path'
 
+import { decodeBoolean, encodeBoolean } from './booleanCodec'
+
 const MIN_WAIT = 1000 * 5
 
 const FILE_HEADER_LEN = 8
+const COILS_HEADER_LEN = 8
 
 const FILE_PREAMBLE = 856
+const COILS_PREAMBLE = 9413
 
 const DATA_DIR = path.resolve(__dirname, '..', 'data')
 const FILE_PATH = path.join(DATA_DIR, 'modbusServerState.bin')
@@ -33,28 +37,56 @@ export default class PersistanceHandler {
     try {
       const fileData = await readFile(FILE_PATH)
       const fileLen = fileData.length
-      if (fileLen < FILE_HEADER_LEN)
-        throw Error(`file is too short to fit header: ${fileLen} bytes`)
-      const preamble = fileData.readUInt32LE(0)
-      if (FILE_PREAMBLE !== preamble)
-        throw Error(
-          `unexpected preamble: expected ${FILE_PREAMBLE}, was ${preamble}`
-        )
+
+      const checkPreamble = (
+        expected: number,
+        pos: number,
+        what: string
+      ): void => {
+        const actual = fileData.readUInt32LE(pos)
+        if (expected !== actual)
+          throw Error(
+            `unexpected ${what} preamble: expected ${expected}, was ${actual}`
+          )
+      }
+
+      const checkTruncation = (minLen: number, what: string): void => {
+        if (fileLen < minLen)
+          throw Error(
+            `file is truncated: expected ${minLen} bytes for ${what}, got ${fileLen}`
+          )
+      }
+
+      checkTruncation(FILE_HEADER_LEN, 'file header')
+      checkPreamble(FILE_PREAMBLE, 0, 'file')
+
       const numRegs = fileData.readUInt32LE(4)
-      const dataEnd = FILE_HEADER_LEN + numRegs * 2
-      if (fileLen < dataEnd)
-        throw Error(
-          `file is truncated: expected ${dataEnd} bytes for ${numRegs} regs, got ${fileLen}`
-        )
+      const coilsHeaderBegin = FILE_HEADER_LEN + numRegs * 2
+      const coilsBegin = coilsHeaderBegin + COILS_HEADER_LEN
+
+      checkTruncation(coilsHeaderBegin, 'numeric register values')
+
       const { modbusServer } = this
-      const { numericRegs, maxNumericRegAddress } = modbusServer
-      fileData.copy(numericRegs, 0, FILE_HEADER_LEN, dataEnd)
-      modbusServer.maxNumericRegAddress = Math.max(
-        maxNumericRegAddress,
-        numRegs
-      )
+      const { numericRegs, maxRegAddress, coils } = modbusServer
+      fileData.copy(numericRegs, 0, FILE_HEADER_LEN, coilsHeaderBegin)
+      modbusServer.maxRegAddress = Math.max(maxRegAddress, numRegs)
+
+      let numCoilsDecoded = 0
+      if (fileLen >= coilsBegin) {
+        try {
+          checkPreamble(COILS_PREAMBLE, coilsHeaderBegin, 'coils')
+          const numCoils = fileData.readUInt32LE(coilsHeaderBegin + 4)
+          const coilsLen = Math.ceil(numCoils / 8)
+          checkTruncation(coilsBegin + coilsLen, 'coil values')
+          decodeBoolean(coils, 0, fileData, coilsBegin, numCoils)
+          numCoilsDecoded = numCoils
+        } catch (err) {
+          console.error(`could not load coils from ${FILE_PATH}`, err)
+        }
+      }
+
       console.log(
-        `loaded modbus server state (${numRegs} registers) from ${FILE_PATH}`
+        `loaded modbus server state (${numRegs} registers, ${numCoilsDecoded} coils) from ${FILE_PATH}`
       )
     } catch (err) {
       if (existsSync(FILE_PATH)) {
@@ -107,12 +139,20 @@ export default class PersistanceHandler {
     this.lastSaveBegin = Date.now()
     let success = false
     try {
-      const { numericRegs, maxNumericRegAddress } = this.modbusServer
-      const dataLen = maxNumericRegAddress * 2
-      const fileToSave = Buffer.alloc(FILE_HEADER_LEN + dataLen)
+      const { numericRegs, coils, maxRegAddress } = this.modbusServer
+      const numericRegsLen = maxRegAddress * 2
+      const coilsHeaderPos = FILE_HEADER_LEN + numericRegsLen
+      const coilsPos = coilsHeaderPos + COILS_HEADER_LEN
+      const coilsLen = Math.ceil(coils.length / 8)
+      const fileToSave = Buffer.alloc(coilsPos + coilsLen)
+
       fileToSave.writeUInt32LE(FILE_PREAMBLE, 0)
-      fileToSave.writeUInt32LE(maxNumericRegAddress, 4)
-      numericRegs.copy(fileToSave, FILE_HEADER_LEN, 0, dataLen)
+      fileToSave.writeUInt32LE(maxRegAddress, 4)
+      numericRegs.copy(fileToSave, FILE_HEADER_LEN, 0, numericRegsLen)
+      fileToSave.writeUInt32LE(COILS_PREAMBLE, coilsHeaderPos)
+      fileToSave.writeUInt32LE(coils.length, coilsHeaderPos + 4)
+      encodeBoolean(fileToSave, coilsPos, coils, 0, coils.length)
+
       if (!fileToSave.equals(this.prevSavedFileData)) {
         this.prevSavedFileData = fileToSave
         await writeFile(FILE_PATH, fileToSave)
