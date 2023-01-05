@@ -299,14 +299,14 @@ export default class ModbusServer {
       response.writeUInt8(modbusErrorCode)
     }
 
-    if (unitId && responseFunctionCode && txId && response)
-      writePacketCallback(
-        encodeResponse({
-          unitId,
-          functionCode: responseFunctionCode,
-          txId,
-          data: response,
-        })
-      )
+    if (unitId != null && responseFunctionCode && txId != null && response) {
+      const responseEncoded = encodeResponse({
+        unitId,
+        functionCode: responseFunctionCode,
+        txId,
+        data: response,
+      })
+      writePacketCallback(responseEncoded)
+    }
   }
 }
